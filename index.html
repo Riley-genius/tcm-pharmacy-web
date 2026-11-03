@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中药房效期预警与盘点管理系统</title>
+<link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.bootcdn.net/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<style>
+:root{--green-900:#14532d;--green-800:#1b5e20;--green-700:#2e7d32;--green-50:#f1f8f2;--ink:#1f2937;--orange:#f97316;--orange-bg:#fff3e6;--red:#dc2626;--red-bg:#fdecec}
+*{box-sizing:border-box}
+body{margin:0;font-family:"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;background:#f4f6f5;color:var(--ink)}
+code{color:var(--green-700)}
+/* 登录页 */
+.login-body{background:linear-gradient(135deg,#e8f5e9 0%,#d7ecd9 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+.login-wrap{display:flex;width:920px;max-width:96vw;min-height:560px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(20,83,45,.18)}
+.login-banner{flex:1.1;background:linear-gradient(160deg,var(--green-800),var(--green-900));color:#fff;display:flex}
+.login-banner-inner{padding:48px 40px;margin:auto}
+.login-logo{width:56px;height:56px;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:24px}
+.login-banner h2{font-size:27px;line-height:1.45;font-weight:700}
+.login-slogan{color:#c8e6c9;margin-top:12px;font-size:14px}
+.login-points{margin-top:28px;padding-left:0;list-style:none;font-size:13.5px;color:#dcedc8;line-height:2.2}
+.login-points li::before{content:"✓ ";color:#a5d6a7;font-weight:bold}
+.login-panel{flex:1;padding:48px 44px;display:flex;flex-direction:column;justify-content:center}
+.login-title{font-weight:700;color:var(--green-800)}
+.demo-accounts{border-top:1px dashed #d5ddd6;padding-top:14px}
+.demo-title{font-size:12.5px;color:#6b7b70;margin-bottom:6px}
+.demo-accounts td{padding:2px 8px 2px 0;color:#4b5b50;font-size:13px}
+/* 主框架 */
+.app-shell{display:flex;min-height:100vh}
+.sidebar{width:232px;background:var(--green-900);color:#cfe3d2;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh}
+.brand{display:flex;gap:12px;align-items:center;padding:20px 18px;border-bottom:1px solid rgba(255,255,255,.08)}
+.brand-logo{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff}
+.brand-title{color:#fff;font-weight:700;font-size:15px;line-height:1.3}
+.brand-sub{font-size:11px;color:#9dc4a3}
+.nav-menu{flex:1;padding:12px 10px;overflow-y:auto}
+.nav-group{color:#7fa586;font-size:11px;padding:14px 12px 4px;letter-spacing:2px}
+.nav-item{display:flex;align-items:center;gap:10px;color:#cfe3d2;padding:10px 14px;border-radius:8px;margin-bottom:2px;text-decoration:none;font-size:14px;cursor:pointer}
+.nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-item.active{background:var(--green-700);color:#fff;font-weight:600}
+.ni{width:18px;text-align:center;opacity:.85}
+.sidebar-foot{padding:14px;font-size:11px;color:#6f9177;border-top:1px solid rgba(255,255,255,.08)}
+.main-area{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{height:60px;background:#fff;border-bottom:1px solid #e3e8e4;display:flex;align-items:center;justify-content:space-between;padding:0 26px;position:sticky;top:0;z-index:10}
+.topbar-title{font-size:17px;font-weight:700;color:var(--green-900)}
+.user-meta{margin-right:12px}
+.user-name{font-weight:600;margin-right:8px}
+.role-badge{background:var(--green-50);color:var(--green-800);border:1px solid #b9d8be;font-weight:500}
+.content{padding:24px 26px 40px}
+/* 卡片 */
+.card{border:1px solid #e3e8e4;border-radius:12px;box-shadow:0 1px 3px rgba(20,83,45,.04)}
+.card-header{background:#fff;font-weight:600;border-bottom:1px solid #edf1ee;border-radius:12px 12px 0 0!important}
+.stat-card{border-radius:12px;padding:18px 20px;color:#fff}
+.stat-card .stat-num{font-size:30px;font-weight:700;line-height:1.1}
+.stat-card .stat-label{font-size:13px;opacity:.9;margin-top:4px}
+.stat-green{background:linear-gradient(135deg,#2e7d32,#1b5e20)}
+.stat-blue{background:linear-gradient(135deg,#2563eb,#1d4ed8)}
+.stat-orange{background:linear-gradient(135deg,#f97316,#ea580c)}
+.stat-red{background:linear-gradient(135deg,#ef4444,#dc2626)}
+.stat-gray{background:linear-gradient(135deg,#64748b,#475569)}
+/* 效期颜色规则 */
+.exp-normal{color:#111}
+.exp-warning{color:var(--orange);font-weight:600}
+.exp-expired{color:var(--red);font-weight:600}
+.exp-badge-warning{background:var(--orange);color:#fff;font-weight:600}
+.exp-badge-expired{background:var(--red);color:#fff;font-weight:600}
+tr.row-warning{background:var(--orange-bg)!important}
+tr.row-expired{background:var(--red-bg)!important}
+.table>:not(caption)>*>*{vertical-align:middle}
+.table thead th{background:var(--green-50);color:var(--green-900);font-size:13px;white-space:nowrap;border-bottom:2px solid #cfe0d2}
+.filter-bar{background:#fff;border:1px solid #e3e8e4;border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.btn-success{background:var(--green-700);border-color:var(--green-700)}
+.btn-success:hover{background:var(--green-800);border-color:var(--green-800)}
+.btn-outline-success{color:var(--green-700);border-color:var(--green-700)}
+.btn-outline-success:hover{background:var(--green-700);border-color:var(--green-700)}
+a{color:var(--green-700)}
+.page-link{color:var(--green-700)}
+.page-item.active .page-link{background:var(--green-700);border-color:var(--green-700)}
+.timeline{list-style:none;padding:0;margin:0}
+.timeline li{position:relative;padding:0 0 16px 22px;border-left:2px solid #d8e4da}
+.timeline li::before{content:"";position:absolute;left:-6px;top:3px;width:10px;height:10px;border-radius:50%;background:var(--green-700)}
+.timeline .tl-time{font-size:12px;color:#7a8a7f}
+.chart-box{height:320px}
+.required{color:var(--red)}
+.diff-plus{color:var(--green-700);font-weight:700}
+.diff-minus{color:var(--red);font-weight:700}
+.diff-zero{color:#6b7280}
+/* 手机适配 */
+@media (max-width:768px){
+  .app-shell{flex-direction:column}
+  .sidebar{width:100%;height:auto;position:static}
+  .brand{padding:12px 14px}
+  .brand-sub{display:none}
+  .sidebar-foot{display:none}
+  .nav-menu{display:flex;overflow-x:auto;padding:6px 8px}
+  .nav-group{display:none}
+  .nav-item{white-space:nowrap;flex:0 0 auto;margin-bottom:0;padding:8px 12px;font-size:13px}
+  .nav-item .ni{display:none}
+  .topbar{height:52px;padding:0 12px}
+  .topbar-title{font-size:15px}
+  .user-meta .user-name{display:none}
+  .content{padding:12px 10px 28px}
+  .stat-card{padding:14px}
+  .stat-card .stat-num{font-size:24px}
+  .card-body.p-0,.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .table{min-width:640px;margin-bottom:0}
+  .filter-bar .form-control,.filter-bar .form-select,.filter-bar .btn{width:100%;margin-bottom:6px}
+  .chart-box{height:260px}
+}
+@media (max-width:820px){
+  .login-wrap{flex-direction:column;width:100%;max-width:100%;min-height:100vh;border-radius:0}
+  .login-banner-inner{padding:28px 24px 20px}
+  .login-banner h2{font-size:21px}
+  .login-points{display:none}
+  .login-panel{padding:26px 22px}
+}
+@media print{.sidebar,.topbar,.no-print{display:none!important}.content{padding:0}body{background:#fff}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.3.3/js/bootstrap.bundle.min.js"></script>
+<script>
+"use strict";
+/* =====================================================================
+ * 中药房效期预警与盘点管理系统 —— 纯网页演示版（单文件）
+ * 数据保存在浏览器 localStorage；业务规则与 Flask 后端版完全一致。
+ * ===================================================================== */
+
+/* ---------- 一、RBAC 角色权限矩阵（与后端 rbac.py 一致） ---------- */
+const PERMS = {
+  admin:  new Set(["dashboard:view","herb:view","herb:edit","batch:view","batch:edit","batch:delete","warning:view","warning:handle","task:view","task:create","task:audit","report:view","log:view","report:export","user:manage"]),
+  keeper: new Set(["dashboard:view","herb:view","herb:edit","batch:view","batch:edit","batch:delete","warning:view","task:view","report:view"]),
+  expiry: new Set(["dashboard:view","herb:view","batch:view","warning:view","warning:handle","task:view","report:view"]),
+  checker:new Set(["dashboard:view","herb:view","batch:view","warning:view","task:view","task:create","report:view"]),
+  viewer: new Set(["dashboard:view","herb:view","batch:view","warning:view","task:view","report:view"])
+};
+const ROLE_NAMES = {admin:"系统管理员",keeper:"库存管理员",expiry:"效期管理员",checker:"盘点员",viewer:"普通查询人员"};
+const WARNING_DAYS = 30, PAGE_SIZE = 8;
+const DB_KEY = "tcm_web_db_v1", SESSION_KEY = "tcm_web_me";
+let db = null, me = null, charts = [];
+const ui = {batches:{q:"",state:"",page:1},herbs:{q:"",page:1},tasks:{status:"",page:1},warnings:{state:"",page:1},logs:{page:1}};
+
+/* ---------- 二、工具函数 ---------- */
+const $ = s => document.querySelector(s);
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function pad(n){ return String(n).padStart(2,"0"); }
+function dstr(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function todayStr(){ return dstr(new Date()); }
+function nowStr(){ const d=new Date(); return dstr(d)+" "+pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()); }
+function addDays(base, n){ const d=new Date(base+"T00:00:00"); d.setDate(d.getDate()+n); return dstr(d); }
+function daysBetween(expiry, base){
+  const a=new Date(expiry+"T00:00:00").getTime(), b=new Date((base||todayStr())+"T00:00:00").getTime();
+  return Math.round((a-b)/86400000);
+}
+function can(p){ return me && PERMS[me.role].has(p); }
+function save(){ localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function recordLog(module, action, target, detail){
+  db.logs.unshift({at:nowStr(), user:me?me.username:"-", module, action, target:target||"-", detail:detail||""});
+  if(db.logs.length>500) db.logs.length=500;
+}
+
+/* ---------- 三、效期规则引擎（与后端 expiry_service.py 一致） ---------- */
+function evaluate(expiry){
+  const days = daysBetween(expiry);
+  if(days < 0) return {code:"expired", label:"已过期",   cls:"exp-expired", badge:"exp-badge-expired", days};
+  if(days <= WARNING_DAYS) return {code:"warning", label:"临期预警", cls:"exp-warning", badge:"exp-badge-warning", days};
+  return {code:"normal", label:"正常", cls:"exp-normal", badge:"", days};
+}
+function batchStateText(b){
+  if(b.status!=="在库") return {code:"out", label:b.status, cls:"text-secondary", badge:"bg-secondary"};
+  return evaluate(b.expiryDate);
+}
+
+/* ---------- 四、种子数据（TC-01~05 日期相对今天动态生成） ---------- */
+function seedDB(){
+  const t = todayStr();
+  // 先初始化 db，uid() 依赖 db.seq，必须在生成任何带 ID 的数据之前
+  db = {seq:100, users:[], herbs:[], batches:[], tasks:[], handles:{}, logs:[]};
+  const herbs = [
+    {code:"YC-001",name:"当归",category:"中药材",spec:"500g/袋",unit:"g",shelfLifeDays:365,origin:"甘肃岷县"},
+    {code:"YC-002",name:"黄芪",category:"中药材",spec:"500g/袋",unit:"g",shelfLifeDays:540,origin:"内蒙古固阳"},
+    {code:"YC-003",name:"枸杞子",category:"中药材",spec:"250g/袋",unit:"g",shelfLifeDays:365,origin:"宁夏中宁"},
+    {code:"YC-004",name:"金银花",category:"中药饮片",spec:"250g/袋",unit:"g",shelfLifeDays:365,origin:"山东平邑"},
+    {code:"YC-005",name:"陈皮",category:"中药材",spec:"500g/袋",unit:"g",shelfLifeDays:1095,origin:"广东新会"},
+    {code:"YC-006",name:"甘草",category:"中药材",spec:"500g/袋",unit:"g",shelfLifeDays:730,origin:"新疆巴楚"},
+    {code:"YC-007",name:"茯苓",category:"中药材",spec:"500g/袋",unit:"g",shelfLifeDays:540,origin:"云南普洱"},
+    {code:"YC-008",name:"白术",category:"中药饮片",spec:"500g/袋",unit:"g",shelfLifeDays:540,origin:"浙江磐安"}
+  ];
+  const B = (no,hc,poff,eoff,qty,price,supplier,remark)=>({id:uid(),batchNo:no,herbCode:hc,productionDate:addDays(t,poff),expiryDate:addDays(t,eoff),quantity:qty,unitPrice:price,supplier,status:"在库",remark:remark||""});
+  const batches = [
+    B("TEST-TC01","YC-001",-305, 60,2000,0.08,"甘肃陇西药业","效期测试批次"),
+    B("TEST-TC02","YC-002",-510, 30,1500,0.12,"内蒙古蒙草堂","效期测试批次"),
+    B("TEST-TC03","YC-003",-350, 15, 800,0.15,"宁夏中宁枸杞公司","效期测试批次"),
+    B("TEST-TC04","YC-004",-365,  0, 600,0.22,"山东平邑饮片厂","效期测试批次"),
+    B("TEST-TC05","YC-005",-1100,-5, 300,0.10,"广东新会陈皮庄","效期测试批次"),
+    B("GC-20260801-01","YC-006",-200,530,1200,0.09,"新疆本草堂",""),
+    B("FL-20260720-01","YC-007",-180,360,900,0.07,"云南云岭药业",""),
+    B("BZ-20260910-01","YC-008",-400,140,1100,0.13,"浙江磐安药材公司",""),
+    B("DG-20260915-01","YC-001",-260,105,1800,0.08,"甘肃陇西药业",""),
+    B("JYH-20261001-01","YC-004",-320,45,700,0.20,"山东平邑饮片厂","")
+  ];
+  const tasks = [{
+    id:uid(), taskNo:"PD20260920-001", title:"2026年9月例行盘点", planDate:addDays(t,-39),
+    status:"已审核", adjustStock:false, remark:"季度盘点，差异已查明", createdBy:"checker", createdAt:addDays(t,-39)+" 09:00:00",
+    submittedBy:"checker", submittedAt:addDays(t,-38)+" 10:20:00", auditedBy:"admin", auditedAt:addDays(t,-37)+" 15:00:00", auditRemark:"差异为自然损耗，审核通过",
+    items:[{id:uid(),batchNo:"GC-20260801-01",bookQty:1200,actualQty:1180,diffQty:-20,remark:"称量自然损耗",updatedAt:addDays(t,-38)+" 10:20:00"}]
+  }];
+  db.users = [
+      {username:"admin",password:"admin123",realName:"吴丽莎",role:"admin",status:1},
+      {username:"keeper",password:"keeper123",realName:"卢桃艳",role:"keeper",status:1},
+      {username:"expiry",password:"expiry123",realName:"徐世遵",role:"expiry",status:1},
+      {username:"checker",password:"checker123",realName:"郑雨阳",role:"checker",status:1},
+      {username:"viewer",password:"viewer123",realName:"童燚",role:"viewer",status:1}
+  ];
+  db.herbs = herbs; db.batches = batches; db.tasks = tasks; db.handles = {};
+  db.logs = [{at:addDays(t,-39)+" 15:05:00",user:"admin",module:"系统初始化",action:"种子数据",target:"-",detail:"导入演示用户、药材档案、批次与历史盘点数据"}];
+  save();
+}
+function uid(){ return ++db.seq; }
+function loadDB(){
+  const raw = localStorage.getItem(DB_KEY);
+  if(raw){ try{ db = JSON.parse(raw); }catch(e){} }
+  if(!db || !db.batches) seedDB();
+}
+function getHerb(code){ return db.herbs.find(h=>h.code===code); }
+function batchByNo(no){ return db.batches.find(b=>b.batchNo===no); }
+
+/* ---------- 五、通用弹窗 / 分页 ---------- */
+function showModal(title, body, submitText, onSubmit, size){
+  $("#appModal")?.remove();
+  const m = document.createElement("div");
+  m.className="modal fade"; m.id="appModal"; m.tabIndex=-1;
+  m.innerHTML = `<div class="modal-dialog modal-${size||"md"} modal-dialog-centered"><div class="modal-content">
+    <form id="appModalForm">
+      <div class="modal-header"><h5 class="modal-title">${title}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">${body}</div>
+      <div class="modal-footer"><button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">取消</button><button class="btn btn-success btn-sm" type="submit">${submitText||"保存"}</button></div>
+    </form></div></div>`;
+  document.body.appendChild(m);
+  const inst = new bootstrap.Modal(m);
+  m.querySelector("form").addEventListener("submit", e=>{
+    e.preventDefault();
+    if(onSubmit(new FormData(e.target), e.target) !== false) inst.hide();
+  });
+  m.addEventListener("hidden.bs.modal", ()=>m.remove());
+  inst.show();
+  return m;
+}
+function toast(msg, ok){
+  const t=document.createElement("div");
+  t.textContent=msg;
+  t.style.cssText="position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9999;padding:10px 20px;border-radius:8px;color:#fff;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.18);background:"+(ok===false?"#dc2626":"#2e7d32");
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2200);
+}
+function pager(total, page, key){
+  const pages = Math.max(1, Math.ceil(total/PAGE_SIZE));
+  if(page>pages) page=pages;
+  let html=`<nav class="mt-3"><ul class="pagination pagination-sm justify-content-end mb-0">`;
+  html+=`<li class="page-item ${page<=1?"disabled":""}"><a class="page-link" data-page="${page-1}" data-pager="${key}">上一页</a></li>`;
+  for(let i=1;i<=pages;i++) html+=`<li class="page-item ${i===page?"active":""}"><a class="page-link" data-page="${i}" data-pager="${key}">${i}</a></li>`;
+  html+=`<li class="page-item ${page>=pages?"disabled":""}"><a class="page-link" data-page="${page+1}" data-pager="${key}">下一页</a></li>`;
+  return html+`</ul></nav>`;
+}
+function pageSlice(arr, st){ return arr.slice((st.page-1)*PAGE_SIZE, st.page*PAGE_SIZE); }
+
+/* ---------- 六、登录 ---------- */
+const loginFails = JSON.parse(localStorage.getItem("tcm_web_fails")||"{}");
+function renderLogin(){
+  $("#app").innerHTML = `<div class="login-body"><div class="login-wrap">
+    <div class="login-banner"><div class="login-banner-inner">
+      <div class="login-logo">⚕</div>
+      <h2>中药房效期预警与<br>盘点管理系统</h2>
+      <div class="login-slogan">批次效期智能预警 · 盘点差异自动核算 · 角色权限精细管控</div>
+      <ul class="login-points">
+        <li>距效期 30 天自动橙色临期预警</li>
+        <li>过期批次红色警示，优先处理</li>
+        <li>盘点差异 = 实盘 − 账面，系统自动计算</li>
+        <li>五类角色 RBAC 权限隔离，操作全程留痕</li>
+      </ul>
+    </div></div>
+    <div class="login-panel">
+      <h4 class="login-title mb-1">欢迎登录</h4>
+      <div class="text-muted small mb-4">中药房库存与效期数字化管理平台（网页演示版）</div>
+      <div id="loginMsg"></div>
+      <form id="loginForm">
+        <div class="mb-3"><label class="form-label small">账号</label>
+          <input name="username" class="form-control" placeholder="请输入账号" autocomplete="username" required></div>
+        <div class="mb-3"><label class="form-label small">密码</label>
+          <input name="password" type="password" class="form-control" placeholder="请输入密码" autocomplete="current-password" required></div>
+        <button class="btn btn-success w-100 py-2">登 录</button>
+      </form>
+      <div class="demo-accounts mt-4">
+        <div class="demo-title">演示账号（密码 = 账号 + 123），点击可快速填入：</div>
+        <table>
+          <tr><td><a href="#" class="quick-login" data-u="admin">admin</a></td><td>系统管理员</td><td><code>admin123</code></td></tr>
+          <tr><td><a href="#" class="quick-login" data-u="keeper">keeper</a></td><td>库存管理员</td><td><code>keeper123</code></td></tr>
+          <tr><td><a href="#" class="quick-login" data-u="expiry">expiry</a></td><td>效期管理员</td><td><code>expiry123</code></td></tr>
+          <tr><td><a href="#" class="quick-login" data-u="checker">checker</a></td><td>盘点员</td><td><code>checker123</code></td></tr>
+          <tr><td><a href="#" class="quick-login" data-u="viewer">viewer</a></td><td>普通查询人员</td><td><code>viewer123</code></td></tr>
+        </table>
+      </div>
+      <div class="text-center mt-3"><a href="#" id="resetDemo" class="small text-muted">恢复出厂演示数据</a></div>
+    </div>
+  </div></div>`;
+
+  $("#loginForm").addEventListener("submit", e=>{
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const username = (fd.get("username")||"").trim(), password = fd.get("password")||"";
+    const msg = $("#loginMsg");
+    if(!/^[一-龥A-Za-z0-9]{3,20}$/.test(username) || !/^\S{6,20}$/.test(password)){
+      msg.innerHTML=`<div class="alert alert-danger py-2 small">账号或密码格式不正确（账号3-20位，密码6-20位）</div>`; return;
+    }
+    const now=Date.now();
+    const hits=(loginFails[username]||[]).filter(t=>now-t<600000);
+    loginFails[username]=hits;
+    if(hits.length>=5){ msg.innerHTML=`<div class="alert alert-danger py-2 small">登录失败次数过多，请 10 分钟后再试</div>`; return; }
+    const u = db.users.find(x=>x.username===username);
+    if(!u || u.password!==password){
+      hits.push(now); localStorage.setItem("tcm_web_fails",JSON.stringify(loginFails));
+      msg.innerHTML=`<div class="alert alert-danger py-2 small">账号或密码错误，请重新输入</div>`; return;
+    }
+    if(u.status!==1){ msg.innerHTML=`<div class="alert alert-danger py-2 small">该账号已停用，请联系系统管理员</div>`; return; }
+    delete loginFails[username]; localStorage.setItem("tcm_web_fails",JSON.stringify(loginFails));
+    me = u; sessionStorage.setItem(SESSION_KEY, username);
+    recordLog("登录认证","登录成功",username,"网页演示版登录"); save();
+    location.hash = "#/dashboard";
+  });
+  document.querySelectorAll(".quick-login").forEach(a=>a.addEventListener("click",e=>{
+    e.preventDefault(); const u=a.dataset.u;
+    const f=$("#loginForm"); f.username.value=u; f.password.value=u+"123";
+  }));
+  $("#resetDemo").addEventListener("click",e=>{
+    e.preventDefault();
+    if(confirm("将清空你新增/修改的全部演示数据并恢复出厂状态，确定吗？")){
+      localStorage.removeItem("tcm_web_fails"); seedDB(); toast("已恢复出厂演示数据"); renderLogin();
+    }
+  });
+}
+
+/* ---------- 七、主框架 ---------- */
+const NAV = [
+  {group:"工作台"},{href:"#/dashboard",icon:"📊",text:"工作台概览",perm:"dashboard:view"},
+  {group:"库存管理"},
+  {href:"#/herbs",icon:"🌿",text:"药材档案",perm:"herb:view"},
+  {href:"#/batches",icon:"📦",text:"批次库存",perm:"batch:view"},
+  {href:"#/warnings",icon:"⚠️",text:"效期预警",perm:"warning:view"},
+  {group:"盘点管理"},{href:"#/stocktake",icon:"📋",text:"盘点任务",perm:"task:view"},
+  {group:"报表日志"},
+  {href:"#/reports",icon:"📈",text:"统计报表",perm:"report:view"},
+  {href:"#/logs",icon:"📝",text:"操作日志",perm:"log:view"},
+  {group:"系统管理"},{href:"#/admin",icon:"👥",text:"用户与参数",perm:"user:manage"}
+];
+const TITLES = {"dashboard":"工作台概览","herbs":"药材档案","batches":"批次库存","warnings":"效期预警","stocktake":"盘点任务","stocktake-new":"登记盘点任务","stocktake-detail":"盘点任务明细","reports":"统计报表","logs":"操作日志","admin":"用户与系统参数"};
+
+function layout(routeKey, contentHtml){
+  const nav = NAV.filter(n=>n.href ? can(n.perm) : true).map(n=>{
+    if(n.group) return `<div class="nav-group">${n.group}</div>`;
+    const active = n.href==="#/"+routeKey || (routeKey.startsWith("stocktake") && n.href==="#/stocktake");
+    return `<a class="nav-item ${active?"active":""}" href="${n.href}"><span class="ni">${n.icon}</span>${n.text}</a>`;
+  }).join("");
+  $("#app").innerHTML = `<div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-logo">⚕</div><div><div class="brand-title">中药房管理系统</div><div class="brand-sub">效期预警 · 盘点管理</div></div></div>
+      <nav class="nav-menu">${nav}</nav>
+      <div class="sidebar-foot">网页演示版 v1.0<br>数据存储于本机浏览器</div>
+    </aside>
+    <div class="main-area">
+      <header class="topbar">
+        <div class="topbar-title">${TITLES[routeKey]||""}</div>
+        <div class="d-flex align-items-center">
+          <span class="user-meta small text-muted"><span class="user-name">${esc(me.realName)}</span><span class="badge role-badge">${ROLE_NAMES[me.role]}</span></span>
+          <button class="btn btn-outline-secondary btn-sm" id="logoutBtn">退出</button>
+        </div>
+      </header>
+      <main class="content" id="content">${contentHtml}</main>
+    </div>
+  </div>`;
+  $("#logoutBtn").addEventListener("click",()=>{
+    recordLog("登录认证","退出登录",me.username,""); save();
+    me=null; sessionStorage.removeItem(SESSION_KEY); location.hash="#/login";
+  });
+}
+
+/* ---------- 八、工作台 ---------- */
+function renderDashboard(){
+  const inStock = db.batches.filter(b=>b.status==="在库");
+  let warn=0, expired=0;
+  inStock.forEach(b=>{ const s=evaluate(b.expiryDate); if(s.code==="warning")warn++; if(s.code==="expired")expired++; });
+  const totalQty = inStock.reduce((s,b)=>s+b.quantity,0);
+  const pending = db.tasks.filter(t=>t.status!=="已审核").length;
+  layout("dashboard", `
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-4 col-xl"><div class="stat-card stat-green"><div class="stat-num">${db.herbs.length}</div><div class="stat-label">药材品种</div></div></div>
+      <div class="col-6 col-md-4 col-xl"><div class="stat-card stat-blue"><div class="stat-num">${inStock.length}</div><div class="stat-label">在库批次</div></div></div>
+      <div class="col-6 col-md-4 col-xl"><div class="stat-card stat-gray"><div class="stat-num">${totalQty.toLocaleString()}</div><div class="stat-label">库存总量（g）</div></div></div>
+      <div class="col-6 col-md-4 col-xl"><div class="stat-card stat-orange"><div class="stat-num">${warn}</div><div class="stat-label">临期预警批次</div></div></div>
+      <div class="col-6 col-md-4 col-xl"><div class="stat-card stat-red"><div class="stat-num">${expired}</div><div class="stat-label">已过期批次</div></div></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-5"><div class="card"><div class="card-header p-3">批次效期状态分布</div><div class="card-body"><div id="chartPie" class="chart-box"></div></div></div></div>
+      <div class="col-lg-7"><div class="card"><div class="card-header p-3">各批次库存量（g）</div><div class="card-body"><div id="chartBar" class="chart-box"></div></div></div></div>
+    </div>
+    <div class="card mt-3"><div class="card-header p-3">待办盘点任务（${pending}）</div><div class="card-body p-0 table-scroll">
+      <table class="table mb-0"><thead><tr><th>任务单号</th><th>任务名称</th><th>计划日期</th><th>状态</th><th>创建人</th></tr></thead><tbody>
+      ${db.tasks.filter(t=>t.status!=="已审核").map(t=>`<tr><td><a href="#/stocktake-detail?id=${t.id}">${t.taskNo}</a></td><td>${esc(t.title)}</td><td>${t.planDate}</td><td>${taskStatusBadge(t.status)}</td><td>${esc(t.createdBy)}</td></tr>`).join("")||`<tr><td colspan="5" class="text-center text-muted py-4">暂无待办任务</td></tr>`}
+      </tbody></table>
+    </div></div>`);
+  drawPie(warn, expired, inStock.length-warn-expired, "#chartPie");
+  drawBar(inStock, "#chartBar");
+}
+function taskStatusBadge(s){
+  const map={"待盘点":"bg-secondary","待审核":"bg-warning text-dark","已审核":"bg-success"};
+  return `<span class="badge ${map[s]||"bg-secondary"}">${s}</span>`;
+}
+function disposeCharts(){ charts.forEach(c=>c.dispose()); charts=[]; }
+function drawPie(w,e,n,elId){
+  const c=echarts.init($(elId||"#chartPie")); charts.push(c);
+  c.setOption({tooltip:{trigger:"item"},legend:{bottom:0},
+    color:["#2e7d32","#f97316","#dc2626"],
+    series:[{type:"pie",radius:["42%","68%"],label:{formatter:"{b}\n{c}批"},data:[
+      {value:n,name:"正常"},{value:w,name:"临期预警"},{value:e,name:"已过期"}
+    ].filter(x=>x.value>0)}]});
+}
+function drawBar(list,elId){
+  const c=echarts.init($(elId||"#chartBar")); charts.push(c);
+  const sorted=[...list].sort((a,b)=>b.quantity-a.quantity);
+  c.setOption({tooltip:{trigger:"axis"},grid:{left:60,right:20,top:20,bottom:70},
+    xAxis:{type:"category",data:sorted.map(b=>b.batchNo),axisLabel:{rotate:38,fontSize:10}},
+    yAxis:{type:"value",name:"g"},
+    series:[{type:"bar",data:sorted.map(b=>({value:b.quantity,itemStyle:{color:batchStateText(b).code==="expired"?"#dc2626":batchStateText(b).code==="warning"?"#f97316":"#2e7d32"}}))}]});
+}
+
+/* ---------- 九、药材档案 ---------- */
+function renderHerbs(){
+  const st=ui.herbs, q=st.q.trim();
+  const list=db.herbs.filter(h=>!q||h.name.includes(q)||h.code.includes(q)||h.origin.includes(q));
+  const rows=pageSlice(list,st);
+  layout("herbs", `
+    <div class="filter-bar d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <form class="d-flex gap-2" data-filter="herbs" style="max-width:420px">
+        <input class="form-control form-control-sm" name="q" value="${esc(st.q)}" placeholder="名称 / 编号 / 产地">
+        <button class="btn btn-outline-success btn-sm">查询</button>
+      </form>
+      ${can("herb:edit")?`<button class="btn btn-success btn-sm" data-act="herb-new">＋ 新增药材</button>`:""}
+    </div>
+    <div class="card"><div class="card-body p-0 table-scroll">
+      <table class="table table-hover mb-0"><thead><tr><th>药材编号</th><th>名称</th><th>分类</th><th>规格</th><th>计量单位</th><th>默认效期(天)</th><th>产地</th>${can("herb:edit")?"<th style='min-width:110px'>操作</th>":""}</tr></thead><tbody>
+      ${rows.map(h=>`<tr>
+        <td><code>${h.code}</code></td><td class="fw-600">${esc(h.name)}</td><td>${esc(h.category)}</td><td>${esc(h.spec)}</td><td>${h.unit}</td><td>${h.shelfLifeDays}</td><td>${esc(h.origin)}</td>
+        ${can("herb:edit")?`<td><button class="btn btn-link btn-sm p-0 me-2" data-act="herb-edit" data-code="${h.code}">编辑</button><button class="btn btn-link btn-sm p-0 text-danger" data-act="herb-del" data-code="${h.code}">删除</button></td>`:""}
+      </tr>`).join("")||`<tr><td colspan="8" class="text-center text-muted py-4">暂无数据</td></tr>`}
+      </tbody></table>
+    </div><div class="card-footer bg-white">${pager(list.length,st.page,"herbs")}</div></div>`);
+}
+function herbForm(h){
+  showModal(h?"编辑药材":"新增药材",`
+    <div class="row g-3">
+      <div class="col-6"><label class="form-label small">药材编号 <span class="required">*</span></label><input name="code" class="form-control" value="${esc(h?.code||"")}" ${h?"readonly":""} required></div>
+      <div class="col-6"><label class="form-label small">药材名称 <span class="required">*</span></label><input name="name" class="form-control" value="${esc(h?.name||"")}" required></div>
+      <div class="col-6"><label class="form-label small">分类</label><select name="category" class="form-select">${["中药材","中药饮片","中成药"].map(c=>`<option ${h?.category===c?"selected":""}>${c}</option>`).join("")}</select></div>
+      <div class="col-6"><label class="form-label small">规格</label><input name="spec" class="form-control" value="${esc(h?.spec||"500g/袋")}"></div>
+      <div class="col-6"><label class="form-label small">计量单位</label><input name="unit" class="form-control" value="${esc(h?.unit||"g")}"></div>
+      <div class="col-6"><label class="form-label small">默认效期(天)</label><input type="number" min="1" name="shelfLifeDays" class="form-control" value="${h?.shelfLifeDays||365}"></div>
+      <div class="col-12"><label class="form-label small">产地</label><input name="origin" class="form-control" value="${esc(h?.origin||"")}"></div>
+    </div>`,"保存",fd=>{
+      const code=(fd.get("code")||"").trim(), name=(fd.get("name")||"").trim();
+      if(!code||!name){toast("编号和名称必填",false);return false;}
+      if(!h && db.herbs.some(x=>x.code===code)){toast("药材编号已存在",false);return false;}
+      const obj={code,name,category:fd.get("category"),spec:fd.get("spec")||"-",unit:fd.get("unit")||"g",shelfLifeDays:parseInt(fd.get("shelfLifeDays"))||365,origin:fd.get("origin")||""};
+      if(h){ Object.assign(h,obj); recordLog("药材档案","编辑药材",code,name); }
+      else { db.herbs.push(obj); recordLog("药材档案","新增药材",code,name); }
+      save(); render(); toast("保存成功");
+    });
+}
+
+/* ---------- 十、批次库存 ---------- */
+function renderBatches(){
+  const st=ui.batches;
+  let list=db.batches.filter(b=>{
+    if(st.q && !(b.batchNo.includes(st.q)||(getHerb(b.herbCode)?.name||"").includes(st.q))) return false;
+    if(st.state && batchStateText(b).code!==st.state) return false;
+    return true;
+  });
+  const rows=pageSlice(list,st);
+  layout("batches", `
+    <div class="filter-bar">
+      <form class="row g-2 align-items-center" data-filter="batches">
+        <div class="col-md-3"><input class="form-control form-control-sm" name="q" value="${esc(st.q)}" placeholder="批次号 / 药材名称"></div>
+        <div class="col-md-2"><select name="state" class="form-select form-select-sm">
+          <option value="">全部状态</option><option value="normal" ${st.state==="normal"?"selected":""}>正常</option>
+          <option value="warning" ${st.state==="warning"?"selected":""}>临期预警</option><option value="expired" ${st.state==="expired"?"selected":""}>已过期</option></select></div>
+        <div class="col-md-2"><button class="btn btn-outline-success btn-sm">查询</button></div>
+        <div class="col-md-5 text-end">${can("batch:edit")?`<button class="btn btn-success btn-sm" data-act="batch-new">＋ 新增批次</button>`:""}</div>
+      </form>
+      <div class="small text-muted mt-2">效期规则：距效期 &gt; ${WARNING_DAYS} 天 <b class="exp-normal">黑色正常</b>；0 ~ ${WARNING_DAYS} 天 <b class="exp-warning">橙色临期预警</b>；已过效期 <b class="exp-expired">红色已过期</b></div>
+    </div>
+    <div class="card"><div class="card-body p-0 table-scroll">
+      <table class="table table-hover mb-0"><thead><tr><th>批次号</th><th>药材</th><th>生产日期</th><th>有效期至</th><th>库存(g)</th><th>单价(元/g)</th><th>供应商</th><th>状态</th>${can("batch:edit")?"<th>操作</th>":""}</tr></thead><tbody>
+      ${rows.map(b=>{
+        const h=getHerb(b.herbCode), s=batchStateText(b);
+        const rowCls=s.code==="warning"?"row-warning":s.code==="expired"?"row-expired":"";
+        const daysTxt = s.code==="expired" ? `已过期 ${-s.days} 天` : s.code==="warning" ? `剩 ${s.days} 天` : `剩 ${s.days} 天`;
+        return `<tr class="${rowCls}">
+          <td><code>${esc(b.batchNo)}</code></td><td>${esc(h?.name||b.herbCode)}</td><td>${b.productionDate}</td>
+          <td><span class="${s.cls}">${b.expiryDate}</span><br><span class="small ${s.cls}">${daysTxt}</span>
+            ${s.code!=="normal"&&b.status==="在库"?`<span class="badge ${s.badge} ms-1">${s.label}</span>`:""}</td>
+          <td>${b.quantity.toLocaleString()}</td><td>${b.unitPrice.toFixed(2)}</td><td class="small">${esc(b.supplier)}</td>
+          <td>${b.status==="在库"?`<span class="badge bg-success">在库</span>`:`<span class="badge bg-secondary">${esc(b.status)}</span>`}</td>
+          ${can("batch:edit")?`<td><button class="btn btn-link btn-sm p-0 me-2" data-act="batch-edit" data-no="${esc(b.batchNo)}">编辑</button>${can("batch:delete")?`<button class="btn btn-link btn-sm p-0 text-danger" data-act="batch-del" data-no="${esc(b.batchNo)}">删除</button>`:""}</td>`:""}
+        </tr>`;
+      }).join("")||`<tr><td colspan="9" class="text-center text-muted py-4">暂无数据</td></tr>`}
+      </tbody></table>
+    </div><div class="card-footer bg-white">${pager(list.length,st.page,"batches")}</div></div>`);
+}
+function batchForm(b){
+  const m=showModal(b?"编辑批次":"新增批次",`
+    <div class="row g-3">
+      <div class="col-6"><label class="form-label small">批次号 <span class="required">*</span></label><input name="batchNo" class="form-control" value="${esc(b?.batchNo||"")}" required></div>
+      <div class="col-6"><label class="form-label small">药材 <span class="required">*</span></label>
+        <select name="herbCode" class="form-select" id="bfHerb">${db.herbs.map(h=>`<option value="${h.code}" ${b?.herbCode===h.code?"selected":""}>${esc(h.name)}（${h.code}，效期${h.shelfLifeDays}天）</option>`).join("")}</select></div>
+      <div class="col-6"><label class="form-label small">生产日期 <span class="required">*</span></label><input type="date" name="productionDate" id="bfProd" class="form-control" value="${b?.productionDate||todayStr()}" required></div>
+      <div class="col-6"><label class="form-label small">有效期至 <span class="required">*</span></label><input type="date" name="expiryDate" id="bfExp" class="form-control" value="${b?.expiryDate||""}" required></div>
+      <div class="col-6"><label class="form-label small">库存数量(g) <span class="required">*</span></label><input type="number" min="0" step="1" name="quantity" class="form-control" value="${b?.quantity??0}" required></div>
+      <div class="col-6"><label class="form-label small">单价(元/g)</label><input type="number" min="0" step="0.01" name="unitPrice" class="form-control" value="${b?.unitPrice??0.1}"></div>
+      <div class="col-12"><label class="form-label small">供应商</label><input name="supplier" class="form-control" value="${esc(b?.supplier||"")}"></div>
+      <div class="col-12"><label class="form-label small">备注</label><input name="remark" class="form-control" value="${esc(b?.remark||"")}"></div>
+    </div>
+    <div class="small text-muted mt-2">提示：选择药材并填写生产日期后，有效期自动按该药材默认效期推算，可手工修改。</div>`,"保存",fd=>{
+      const no=(fd.get("batchNo")||"").trim();
+      const prod=fd.get("productionDate"), exp=fd.get("expiryDate"), qty=parseInt(fd.get("quantity"));
+      if(!no){toast("批次号必填",false);return false;}
+      if(!b && db.batches.some(x=>x.batchNo===no)){toast("批次号已存在，请核对",false);return false;}
+      if(!prod||!exp||exp<prod){toast("有效期不能早于生产日期",false);return false;}
+      if(isNaN(qty)||qty<0){toast("库存数量必须是非负整数",false);return false;}
+      const obj={batchNo:no,herbCode:fd.get("herbCode"),productionDate:prod,expiryDate:exp,quantity:qty,unitPrice:parseFloat(fd.get("unitPrice"))||0,supplier:fd.get("supplier")||"",remark:fd.get("remark")||""};
+      if(b){ Object.assign(b,obj); recordLog("批次库存","编辑批次",no,`有效期至 ${exp}，库存 ${qty}g`); }
+      else { db.batches.push({id:uid(),status:"在库",...obj}); recordLog("批次库存","新增批次",no,`药材 ${obj.herbCode}，有效期至 ${exp}`); }
+      save(); render(); toast("保存成功");
+    },"lg");
+  // 自动推算有效期
+  const recalc=()=>{ const sel=$("#bfHerb"), prod=$("#bfProd").value, exp=$("#bfExp");
+    const h=getHerb(sel.value);
+    if(h&&prod&&!exp.dataset.manual) exp.value=addDays(prod,h.shelfLifeDays);
+  };
+  m.querySelector("#bfHerb").addEventListener("change",recalc);
+  m.querySelector("#bfProd").addEventListener("change",recalc);
+  m.querySelector("#bfExp").addEventListener("change",e=>e.target.dataset.manual="1");
+  if(!b) recalc();
+}
+
+/* ---------- 十一、效期预警 ---------- */
+function warningList(){
+  const rows=[];
+  db.batches.filter(b=>b.status==="在库").forEach(b=>{
+    const s=evaluate(b.expiryDate);
+    if(s.code==="normal") return;
+    rows.push({b,s,handled:db.handles[b.batchNo]});
+  });
+  return rows.sort((x,y)=>x.s.days-y.s.days);
+}
+function renderWarnings(){
+  const st=ui.warnings;
+  let list=warningList();
+  if(st.state==="open") list=list.filter(x=>!x.handled);
+  if(st.state==="done") list=list.filter(x=>x.handled);
+  const rows=pageSlice(list,st);
+  layout("warnings",`
+    <div class="filter-bar">
+      <form class="d-flex gap-2 align-items-center" data-filter="warnings">
+        <select name="state" class="form-select form-select-sm" style="max-width:180px">
+          <option value="">全部预警</option><option value="open" ${st.state==="open"?"selected":""}>未处理</option><option value="done" ${st.state==="done"?"selected":""}>已处理</option></select>
+        <button class="btn btn-outline-success btn-sm">查询</button>
+        <span class="small text-muted ms-2">临期阈值 ${WARNING_DAYS} 天，系统按批次有效期每日自动判定</span>
+      </form>
+    </div>
+    <div class="card"><div class="card-body p-0 table-scroll">
+      <table class="table table-hover mb-0"><thead><tr><th>批次号</th><th>药材</th><th>有效期至</th><th>剩余/超期</th><th>预警级别</th><th>库存(g)</th><th>处理状态</th><th>处理记录</th>${can("warning:handle")?"<th>操作</th>":""}</tr></thead><tbody>
+      ${rows.map(({b,s,handled})=>`<tr class="${s.code==="warning"?"row-warning":"row-expired"}">
+        <td><code>${esc(b.batchNo)}</code></td><td>${esc(getHerb(b.herbCode)?.name)}</td>
+        <td class="${s.cls}">${b.expiryDate}</td>
+        <td class="${s.cls}">${s.code==="expired"?`已超期 ${-s.days} 天`:`剩 ${s.days} 天`}</td>
+        <td><span class="badge ${s.badge}">${s.label}</span></td><td>${b.quantity.toLocaleString()}</td>
+        <td>${handliedBadge(handled)}</td><td class="small text-muted">${handled?`${esc(handled.by)} ${handled.at}<br>${esc(handled.remark)}`:"-"}</td>
+        ${can("warning:handle")?`<td>${handled?`<button class="btn btn-link btn-sm p-0" data-act="warn-unhandle" data-no="${esc(b.batchNo)}">撤销处理</button>`:`<button class="btn btn-link btn-sm p-0" data-act="warn-handle" data-no="${esc(b.batchNo)}">登记处理</button>`}</td>`:""}
+      </tr>`).join("")||`<tr><td colspan="9" class="text-center text-muted py-4">当前没有临期/过期预警批次 🎉</td></tr>`}
+      </tbody></table>
+    </div><div class="card-footer bg-white">${pager(list.length,st.page,"warnings")}</div></div>`);
+}
+function handliedBadge(h){ return h?`<span class="badge bg-success">已处理</span>`:`<span class="badge bg-secondary">未处理</span>`; }
+
+/* ---------- 十二、盘点任务 ---------- */
+function renderStocktake(){
+  const st=ui.tasks;
+  let list=[...db.tasks].sort((a,b)=>b.id-a.id);
+  if(st.status) list=list.filter(t=>t.status===st.status);
+  const rows=pageSlice(list,st);
+  layout("stocktake",`
+    <div class="filter-bar d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <form class="d-flex gap-2" data-filter="tasks">
+        <select name="status" class="form-select form-select-sm" style="max-width:180px">
+          <option value="">全部状态</option><option ${st.status==="待盘点"?"selected":""}>待盘点</option>
+          <option value="待审核" ${st.status==="待审核"?"selected":""}>待审核</option><option value="已审核" ${st.status==="已审核"?"selected":""}>已审核</option></select>
+        <button class="btn btn-outline-success btn-sm">查询</button>
+      </form>
+      ${can("task:create")?`<a class="btn btn-success btn-sm" href="#/stocktake-new">＋ 登记盘点任务</a>`:""}
+    </div>
+    <div class="card"><div class="card-body p-0 table-scroll">
+      <table class="table table-hover mb-0"><thead><tr><th>任务单号</th><th>任务名称</th><th>计划日期</th><th>明细进度</th><th>状态</th><th>创建人</th><th>操作</th></tr></thead><tbody>
+      ${rows.map(t=>{const done=t.items.filter(i=>i.actualQty!==null).length;
+        return `<tr><td><code>${t.taskNo}</code></td><td>${esc(t.title)}</td><td>${t.planDate}</td>
+        <td>${done}/${t.items.length} 已盘</td><td>${taskStatusBadge(t.status)}</td><td>${esc(t.createdBy)}</td>
+        <td><a class="btn btn-link btn-sm p-0" href="#/stocktake-detail?id=${t.id}">查看明细</a></td></tr>`;}).join("")||`<tr><td colspan="7" class="text-center text-muted py-4">暂无盘点任务</td></tr>`}
+      </tbody></table>
+    </div><div class="card-footer bg-white">${pager(list.length,st.page,"tasks")}</div></div>`);
+}
+function genTaskNo(){ const d=todayStr().replaceAll("-",""); let n=1;
+  const used=db.tasks.filter(t=>t.taskNo.includes("PD"+d)).length+1;
+  return `PD${d}-${String(used).padStart(3,"0")}`;
+}
+function renderStocktakeNew(){
+  const inStock=db.batches.filter(b=>b.status==="在库");
+  layout("stocktake-new",`
+    <div class="card"><div class="card-header p-3">登记盘点任务</div><div class="card-body">
+      <form id="newTaskForm" class="row g-3">
+        <div class="col-md-5"><label class="form-label small">任务名称 <span class="required">*</span></label><input name="title" class="form-control" value="${todayStr().slice(0,7)} 月度盘点" required></div>
+        <div class="col-md-3"><label class="form-label small">计划日期 <span class="required">*</span></label><input type="date" name="planDate" class="form-control" value="${todayStr()}" required></div>
+        <div class="col-md-4"><label class="form-label small">备注</label><input name="remark" class="form-control"></div>
+        <div class="col-12">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <label class="form-label small mb-0">选择盘点批次（账面数量在建单时快照）</label>
+            <span class="small text-muted"><label class="mb-0"><input type="checkbox" id="chkAll"> 全选</label></span>
+          </div>
+          <div class="table-scroll border rounded"><table class="table table-sm mb-0">
+            <thead><tr><th style="width:36px"></th><th>批次号</th><th>药材</th><th>有效期至</th><th>账面库存(g)</th><th>效期状态</th></tr></thead>
+            <tbody>${inStock.map(b=>{const s=batchStateText(b);return `<tr>
+              <td class="text-center"><input type="checkbox" name="bids" value="${esc(b.batchNo)}" class="batch-chk"></td>
+              <td><code>${esc(b.batchNo)}</code></td><td>${esc(getHerb(b.herbCode)?.name)}</td>
+              <td class="${s.cls}">${b.expiryDate}</td><td>${b.quantity}</td>
+              <td>${s.code==="normal"?`<span class="text-muted small">正常</span>`:`<span class="badge ${s.badge}">${s.label}</span>`}</td></tr>`;}).join("")}</tbody>
+          </table></div>
+        </div>
+        <div class="col-12 d-flex gap-2"><button class="btn btn-success">创建任务</button><a class="btn btn-light border" href="#/stocktake">取消</a></div>
+      </form>
+    </div></div>`);
+  $("#chkAll").addEventListener("change",e=>document.querySelectorAll(".batch-chk").forEach(c=>c.checked=e.target.checked));
+  $("#newTaskForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    const fd=new FormData(e.target);
+    const nos=fd.getAll("bids");
+    if(!nos.length){toast("请至少选择一个批次",false);return;}
+    const title=(fd.get("title")||"").trim();
+    const t={id:uid(),taskNo:genTaskNo(),title,planDate:fd.get("planDate"),status:"待盘点",adjustStock:false,remark:fd.get("remark")||"",createdBy:me.username,createdAt:nowStr(),submittedBy:null,submittedAt:null,auditedBy:null,auditedAt:null,auditRemark:"",
+      items:nos.map(no=>{const b=batchByNo(no);return {id:uid(),batchNo:no,bookQty:b.quantity,actualQty:null,diffQty:0,remark:"",updatedAt:""};})};
+    db.tasks.push(t); recordLog("盘点任务","创建盘点任务",t.taskNo,`${title}，${nos.length} 个批次`); save();
+    toast("盘点任务已创建"); location.hash="#/stocktake-detail?id="+t.id;
+  });
+}
+function fmtDiff(d){ if(d>0)return `<span class="diff-plus">+${d}（盘盈）</span>`; if(d<0)return `<span class="diff-minus">${d}（盘亏）</span>`; return `<span class="diff-zero">0（一致）</span>`; }
+function renderStocktakeDetail(id){
+  const t=db.tasks.find(x=>x.id===id);
+  if(!t){ layout("stocktake-detail",`<div class="alert alert-warning">任务不存在</div>`); return; }
+  const canCount = can("task:create") && t.status==="待盘点";
+  const canAudit = can("task:audit") && t.status==="待审核";
+  layout("stocktake-detail",`
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2 no-print">
+      <a href="#/stocktake" class="small">← 返回盘点任务列表</a>
+      <div class="d-flex gap-2">
+        ${canCount?`<button class="btn btn-success btn-sm" data-act="task-submit" data-id="${t.id}">提交审核</button>`:""}
+        ${canAudit?`<button class="btn btn-success btn-sm" data-act="task-audit-pass" data-id="${t.id}">审核通过</button>
+          <button class="btn btn-outline-danger btn-sm" data-act="task-audit-reject" data-id="${t.id}">退回重盘</button>`:""}
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-8">
+        <div class="card"><div class="card-header p-3">盘点明细（差异 = 实盘 − 账面，由系统自动计算）</div>
+          <div class="card-body p-0 table-scroll"><table class="table mb-0">
+            <thead><tr><th>批次号</th><th>药材</th><th>账面(g)</th><th>实盘(g)</th><th>差异(g)</th><th>备注/操作</th></tr></thead>
+            <tbody>${t.items.map(it=>{const b=batchByNo(it.batchNo);
+              return `<tr>
+                <td><code>${esc(it.batchNo)}</code></td><td>${esc(getHerb(b?.herbCode)?.name||"")}</td>
+                <td>${it.bookQty}</td>
+                <td>${canCount?`<input type="number" min="0" class="form-control form-control-sm actual-input" style="width:100px" data-iid="${it.id}" value="${it.actualQty??""}">`:(it.actualQty??'<span class="text-muted">未盘</span>')}</td>
+                <td id="diff-${it.id}">${it.actualQty==null?'-':fmtDiff(it.diffQty)}</td>
+                <td style="min-width:200px">${canCount?`<div class="d-flex gap-1"><input class="form-control form-control-sm remark-input" data-iid="${it.id}" value="${esc(it.remark)}" placeholder="差异说明" style="width:110px"><button class="btn btn-outline-success btn-sm" data-act="item-save" data-iid="${it.id}">保存</button></div>`:esc(it.remark||"-")}</td>
+              </tr>`;}).join("")}</tbody></table></div></div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card mb-3"><div class="card-header p-3">任务信息</div><div class="card-body small">
+          <div class="mb-2">任务单号：<code>${t.taskNo}</code></div>
+          <div class="mb-2">任务名称：${esc(t.title)}</div>
+          <div class="mb-2">计划日期：${t.planDate}</div>
+          <div class="mb-2">当前状态：${taskStatusBadge(t.status)}</div>
+          <div class="mb-2">备注：${esc(t.remark||"-")}</div>
+          ${t.status==="已审核"?`<div class="form-check mb-2"><input type="checkbox" class="form-check-input" ${t.adjustStock?"checked":""} disabled><label class="form-check-label">审核时已按实盘调整库存</label></div><div class="text-muted">审核意见：${esc(t.auditRemark||"-")}</div>`:""}
+        </div></div>
+        <div class="card"><div class="card-header p-3">状态时间线</div><div class="card-body">
+          <ul class="timeline small">
+            <li><div>创建任务</div><div class="tl-time">${esc(t.createdBy)} · ${t.createdAt}</div></li>
+            ${t.submittedAt?`<li><div>提交审核</div><div class="tl-time">${esc(t.submittedBy)} · ${t.submittedAt}</div></li>`:""}
+            ${t.auditedAt?`<li><div>审核${t.status==="已审核"?"通过":"退回"}</div><div class="tl-time">${esc(t.auditedBy)} · ${t.auditedAt}</div></li>`:""}
+            ${t.status==="待盘点"&&t.auditedAt?`<li><div>退回后重新盘点中</div></li>`:""}
+          </ul></div></div>
+      </div>
+    </div>`);
+  // 实盘输入实时联动差异显示
+  document.querySelectorAll(".actual-input").forEach(inp=>inp.addEventListener("input",()=>{
+    const iid=+inp.dataset.iid, it=t.items.find(x=>x.id===iid);
+    const cell=$("#diff-"+iid), v=inp.value===""?null:parseInt(inp.value);
+    cell.innerHTML = v===null||isNaN(v) ? "-" : fmtDiff(v-it.bookQty);
+  }));
+}
+
+/* ---------- 十三、统计报表 ---------- */
+function renderReports(){
+  const inStock=db.batches.filter(b=>b.status==="在库");
+  let warn=0,expired=0; inStock.forEach(b=>{const s=evaluate(b.expiryDate);if(s.code==="warning")warn++;if(s.code==="expired")expired++;});
+  const stockValue = inStock.reduce((s,b)=>s+b.quantity*b.unitPrice,0);
+  const diffRows = db.tasks.flatMap(t=>t.items.filter(i=>i.diffQty!==0).map(i=>({t,i})));
+  layout("reports",`
+    <div class="d-flex justify-content-end gap-2 mb-3 no-print">
+      <button class="btn btn-outline-success btn-sm" data-act="export-csv">导出批次库存 CSV</button>
+      <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">打印报表</button>
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3"><div class="stat-card stat-green"><div class="stat-num">${inStock.length}</div><div class="stat-label">在库批次</div></div></div>
+      <div class="col-6 col-md-3"><div class="stat-card stat-orange"><div class="stat-num">${warn}</div><div class="stat-label">临期批次</div></div></div>
+      <div class="col-6 col-md-3"><div class="stat-card stat-red"><div class="stat-num">${expired}</div><div class="stat-label">过期批次</div></div></div>
+      <div class="col-6 col-md-3"><div class="stat-card stat-blue"><div class="stat-num">¥${stockValue.toFixed(0)}</div><div class="stat-label">在库库存金额(元)</div></div></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-lg-5"><div class="card"><div class="card-header p-3">效期状态分布</div><div class="card-body"><div id="repPie" class="chart-box"></div></div></div></div>
+      <div class="col-lg-7"><div class="card"><div class="card-header p-3">批次库存量对比</div><div class="card-body"><div id="repBar" class="chart-box"></div></div></div></div>
+    </div>
+    <div class="card mt-3"><div class="card-header p-3">盘点差异明细（${diffRows.length} 条）</div><div class="card-body p-0 table-scroll">
+      <table class="table mb-0"><thead><tr><th>任务单号</th><th>批次号</th><th>药材</th><th>账面(g)</th><th>实盘(g)</th><th>差异(g)</th><th>说明</th></tr></thead><tbody>
+      ${diffRows.map(({t,i})=>`<tr><td><code>${t.taskNo}</code></td><td><code>${esc(i.batchNo)}</code></td><td>${esc(getHerb(batchByNo(i.batchNo)?.herbCode)?.name||"")}</td><td>${i.bookQty}</td><td>${i.actualQty}</td><td>${fmtDiff(i.diffQty)}</td><td class="small">${esc(i.remark||"-")}</td></tr>`).join("")||`<tr><td colspan="7" class="text-center text-muted py-4">暂无差异记录</td></tr>`}
+      </tbody></table></div></div>`);
+  drawPie(warn,expired,inStock.length-warn-expired,"#repPie");
+  drawBar(inStock,"#repBar");
+}
+function exportCSV(){
+  const head=["批次号","药材编号","药材名称","生产日期","有效期至","效期状态","剩余天数","库存数量","单价","库存金额","供应商"];
+  const lines=[head.join(",")];
+  db.batches.forEach(b=>{const h=getHerb(b.herbCode),s=batchStateText(b);
+    lines.push([b.batchNo,b.herbCode,h?.name||"",b.productionDate,b.expiryDate,s.label,s.days,b.quantity,b.unitPrice,(b.quantity*b.unitPrice).toFixed(2),b.supplier].map(v=>`"${String(v).replaceAll('"','""')}"`).join(","));});
+  const blob=new Blob(["\uFEFF"+lines.join("\n")],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="批次库存报表_"+todayStr()+".csv"; a.click();
+  recordLog("报表日志","导出CSV","批次库存报表",`${db.batches.length} 条批次记录`); save();
+  toast("CSV 已导出");
+}
+
+/* ---------- 十四、操作日志 ---------- */
+function renderLogs(){
+  const st=ui.logs, rows=pageSlice(db.logs,st);
+  layout("logs",`<div class="card"><div class="card-header p-3 d-flex justify-content-between"><span>操作日志（全程留痕）</span><span class="small text-muted">共 ${db.logs.length} 条</span></div>
+    <div class="card-body p-0 table-scroll"><table class="table table-sm table-hover mb-0">
+      <thead><tr><th>时间</th><th>操作人</th><th>模块</th><th>操作</th><th>对象</th><th>详情</th></tr></thead><tbody>
+      ${rows.map(l=>`<tr><td class="small text-nowrap">${l.at}</td><td>${esc(l.user)}</td><td>${esc(l.module)}</td><td>${esc(l.action)}</td><td class="small">${esc(l.target)}</td><td class="small text-muted">${esc(l.detail)}</td></tr>`).join("")}
+      </tbody></table></div>
+    <div class="card-footer bg-white">${pager(db.logs.length,st.page,"logs")}</div></div>`);
+}
+
+/* ---------- 十五、系统管理（用户/参数） ---------- */
+function renderAdmin(){
+  layout("admin",`
+    <div class="card mb-3"><div class="card-header p-3 d-flex justify-content-between"><span>用户管理</span><button class="btn btn-success btn-sm" data-act="user-new">＋ 新增用户</button></div>
+      <div class="card-body p-0 table-scroll"><table class="table table-hover mb-0">
+        <thead><tr><th>账号</th><th>姓名</th><th>角色</th><th>状态</th><th>操作</th></tr></thead><tbody>
+        ${db.users.map(u=>`<tr><td><code>${u.username}</code></td><td>${esc(u.realName)}</td><td>${ROLE_NAMES[u.role]}</td>
+          <td>${u.status?`<span class="badge bg-success">启用</span>`:`<span class="badge bg-secondary">停用</span>`}</td>
+          <td><button class="btn btn-link btn-sm p-0 me-2" data-act="user-pwd" data-u="${u.username}">重置密码</button>${u.username!=="admin"?`<button class="btn btn-link btn-sm p-0 ${u.status?"text-danger":""}" data-act="user-toggle" data-u="${u.username}">${u.status?"停用":"启用"}</button>`:""}</td></tr>`).join("")}
+        </tbody></table></div></div>
+    <div class="card"><div class="card-header p-3">效期预警参数</div><div class="card-body d-flex align-items-center gap-3 flex-wrap">
+      <span>临期预警阈值：<b>${WARNING_DAYS}</b> 天（距效期 ≤ 该值即橙色预警；网页演示版固定为作业要求的 30 天）</span>
+      <button class="btn btn-outline-secondary btn-sm" data-act="reset-data">恢复出厂演示数据</button>
+    </div></div>`);
+}
+function userForm(){
+  showModal("新增用户",`
+    <div class="row g-3">
+      <div class="col-6"><label class="form-label small">账号 <span class="required">*</span></label><input name="username" class="form-control" pattern="[一-龥A-Za-z0-9]{3,20}" required></div>
+      <div class="col-6"><label class="form-label small">姓名 <span class="required">*</span></label><input name="realName" class="form-control" required></div>
+      <div class="col-6"><label class="form-label small">初始密码 <span class="required">*</span></label><input name="password" class="form-control" pattern="\\S{6,20}" placeholder="6-20位" required></div>
+      <div class="col-6"><label class="form-label small">角色</label><select name="role" class="form-select">${Object.entries(ROLE_NAMES).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></div>
+    </div>`,"创建",fd=>{
+      const username=(fd.get("username")||"").trim();
+      if(db.users.some(u=>u.username===username)){toast("账号已存在",false);return false;}
+      db.users.push({username,password:fd.get("password"),realName:fd.get("realName"),role:fd.get("role"),status:1});
+      recordLog("用户管理","新增用户",username,"角色："+ROLE_NAMES[fd.get("role")]); save(); render(); toast("用户已创建");
+    });
+}
+
+/* ---------- 十六、全局事件委托 ---------- */
+document.addEventListener("click", e=>{
+  // 分页
+  const pg=e.target.closest("[data-pager]");
+  if(pg){ e.preventDefault();
+    const key=pg.dataset.pager, p=+pg.dataset.page;
+    const total={herbs:db.herbs.length,batches:db.batches.length,tasks:db.tasks.length,warnings:warningList().length,logs:db.logs.length}[key];
+    const pages=Math.max(1,Math.ceil(total/PAGE_SIZE));
+    if(p>=1&&p<=pages){ ui[key].page=p; render(); }
+    return;
+  }
+  const btn=e.target.closest("[data-act]");
+  if(!btn) return;
+  const act=btn.dataset.act;
+  if(act==="herb-new") herbForm(null);
+  if(act==="herb-edit") herbForm(db.herbs.find(h=>h.code===btn.dataset.code));
+  if(act==="herb-del"){ const h=db.herbs.find(x=>x.code===btn.dataset.code);
+    if(db.batches.some(b=>b.herbCode===h.code)){toast("该药材存在批次记录，不能删除",false);return;}
+    if(confirm(`确定删除药材「${h.name}」吗？`)){ db.herbs=db.herbs.filter(x=>x!==h); recordLog("药材档案","删除药材",h.code,h.name); save(); render(); toast("已删除"); }
+  }
+  if(act==="batch-new") batchForm(null);
+  if(act==="batch-edit") batchForm(db.batches.find(b=>b.batchNo===btn.dataset.no));
+  if(act==="batch-del"){ const b=db.batches.find(x=>x.batchNo===btn.dataset.no);
+    if(db.tasks.some(t=>t.items.some(i=>i.batchNo===b.batchNo))){toast("该批次已被盘点任务引用，不能删除",false);return;}
+    if(confirm(`确定删除批次「${b.batchNo}」吗？`)){ db.batches=db.batches.filter(x=>x!==b); recordLog("批次库存","删除批次",b.batchNo,""); save(); render(); toast("已删除"); }
+  }
+  if(act==="warn-handle"){ const no=btn.dataset.no;
+    showModal("登记预警处理",`<label class="form-label small">处理措施 / 备注</label>
+      <textarea name="remark" class="form-control" rows="3" placeholder="如：已联系供应商退换货 / 已优先调拨使用"></textarea>`,"确认处理",fd=>{
+      db.handles[no]={by:me.username,at:nowStr(),remark:fd.get("remark")||"已处理"};
+      recordLog("效期预警","登记处理",no,fd.get("remark")||"已处理"); save(); render(); toast("已登记处理");
+    });
+  }
+  if(act==="warn-unhandle"){ const no=btn.dataset.no;
+    delete db.handles[no]; recordLog("效期预警","撤销处理",no,""); save(); render();
+  }
+  if(act==="item-save"){
+    const t=currentTask(), it=t.items.find(x=>x.id===+btn.dataset.iid);
+    const row=btn.closest("tr"), v=row.querySelector(".actual-input").value;
+    const actual=parseInt(v), remark=row.querySelector(".remark-input").value;
+    if(v===""||isNaN(actual)||actual<0){toast("请输入有效的实盘数量（非负整数）",false);return;}
+    it.actualQty=actual; it.diffQty=actual-it.bookQty; it.remark=remark; it.updatedAt=nowStr();
+    recordLog("盘点任务","录入实盘",t.taskNo,`${it.batchNo}：账面${it.bookQty}，实盘${actual}，差异${it.diffQty}`); save(); render();
+    toast(`已保存，差异 ${it.diffQty>0?"+":""}${it.diffQty}`);
+  }
+  if(act==="task-submit"){ const t=currentTask();
+    const undone=t.items.filter(i=>i.actualQty===null);
+    if(undone.length){toast(`还有 ${undone.length} 个批次未录入实盘`,false);return;}
+    t.status="待审核"; t.submittedBy=me.username; t.submittedAt=nowStr();
+    recordLog("盘点任务","提交审核",t.taskNo,""); save(); render(); toast("已提交审核");
+  }
+  if(act==="task-audit-pass"){ const t=currentTask();
+    showModal("盘点审核",'<p class="small">任务 <code>'+t.taskNo+'</code> 已完成 '+t.items.length+' 个批次盘点：</p>'
+      +'<div class="form-check mb-2"><input type="radio" name="way" class="form-check-input" value="adjust" id="w1" checked><label class="form-check-label" for="w1">审核通过，<b>按实盘数量调整库存</b></label></div>'
+      +'<div class="form-check mb-3"><input type="radio" name="way" class="form-check-input" value="keep" id="w2"><label class="form-check-label" for="w2">仅审核通过，<b>库存不作调整</b></label></div>'
+      +'<label class="form-label small">审核意见</label><input name="remark" class="form-control" value="差异已查明，审核通过">',
+      "确认审核",fd=>{
+    const adjust=fd.get("way")==="adjust";
+    t.status="已审核"; t.auditedBy=me.username; t.auditedAt=nowStr(); t.adjustStock=adjust;
+    t.auditRemark=fd.get("remark")||(adjust?"审核通过，按实盘调账":"审核通过，库存不调整");
+    if(adjust) t.items.forEach(i=>{ if(i.diffQty!==0){ const b=batchByNo(i.batchNo); if(b)b.quantity=i.actualQty; }});
+    recordLog("盘点任务","审核通过",t.taskNo,t.auditRemark); save(); render();
+    toast(adjust?"已审核并按实盘调账":"已审核，库存未调整");
+    });
+  }
+  if(act==="task-audit-reject"){ const t=currentTask();
+    const r=prompt("退回原因：","请复核实盘数量"); if(r===null)return;
+    t.status="待盘点"; t.auditedBy=me.username; t.auditedAt=nowStr(); t.auditRemark="退回："+r;
+    recordLog("盘点任务","审核退回",t.taskNo,r); save(); render(); toast("已退回重盘");
+  }
+  if(act==="export-csv") exportCSV();
+  if(act==="user-new") userForm();
+  if(act==="user-pwd"){ const u=db.users.find(x=>x.username===btn.dataset.u);
+    showModal("重置密码",`<label class="form-label small">为「${esc(u.realName)}」设置新密码（6-20位）</label><input name="pwd" class="form-control" pattern="\\S{6,20}" required>`,"重置",fd=>{
+      u.password=fd.get("pwd"); recordLog("用户管理","重置密码",u.username,""); save(); render(); toast("密码已重置");
+    });
+  }
+  if(act==="user-toggle"){ const u=db.users.find(x=>x.username===btn.dataset.u);
+    u.status=u.status?0:1; recordLog("用户管理",u.status?"启用用户":"停用用户",u.username,""); save(); render();
+  }
+  if(act==="reset-data"){ if(confirm("将清空你新增/修改的全部数据并恢复出厂状态，确定吗？")){ seedDB(); render(); toast("已恢复出厂数据"); } }
+});
+// 筛选表单
+document.addEventListener("submit", e=>{
+  const f=e.target.closest("form[data-filter]"); if(!f) return;
+  e.preventDefault(); const key=f.dataset.filter; const fd=new FormData(f);
+  if("q" in Object.fromEntries(fd)) ui[key].q=(fd.get("q")||"").trim();
+  if(fd.has("state")) ui[key].state=fd.get("state");
+  if(fd.has("status")) ui[key].status=fd.get("status");
+  ui[key].page=1; render();
+});
+function currentTask(){ const m=location.hash.match(/id=(\d+)/); return db.tasks.find(t=>t.id===+m[1]); }
+
+/* ---------- 十七、路由 ---------- */
+const ROUTES={
+  dashboard:{perm:"dashboard:view",fn:renderDashboard},
+  herbs:{perm:"herb:view",fn:renderHerbs},
+  batches:{perm:"batch:view",fn:renderBatches},
+  warnings:{perm:"warning:view",fn:renderWarnings},
+  stocktake:{perm:"task:view",fn:renderStocktake},
+  "stocktake-new":{perm:"task:create",fn:renderStocktakeNew},
+  reports:{perm:"report:view",fn:renderReports},
+  logs:{perm:"log:view",fn:renderLogs},
+  admin:{perm:"user:manage",fn:renderAdmin}
+};
+function render(){
+  disposeCharts();
+  if(!me){ renderLogin(); return; }
+  const key=(location.hash.replace("#/","")||"dashboard").split("?")[0];
+  if(key==="login"||!key){ renderLogin(); return; }
+  if(key==="stocktake-detail"){
+    const m=location.hash.match(/id=(\d+)/);
+    if(!can("task:view")){ layout(key,`<div class="alert alert-danger">403：你没有访问该页面的权限</div>`); return; }
+    renderStocktakeDetail(m?+m[1]:0); return;
+  }
+  const r=ROUTES[key];
+  if(!r){ layout(key,`<div class="alert alert-warning">页面不存在</div>`); return; }
+  if(!can(r.perm)){ layout(key,`<div class="alert alert-danger">403：你没有访问该页面的权限（当前角色：${ROLE_NAMES[me.role]}）</div>`); return; }
+  r.fn();
+}
+window.addEventListener("hashchange",render);
+window.addEventListener("resize",()=>charts.forEach(c=>c.resize()));
+
+/* ---------- 启动 ---------- */
+loadDB();
+const savedUser=sessionStorage.getItem(SESSION_KEY);
+me = savedUser ? (db.users.find(u=>u.username===savedUser && u.status===1)||null) : null;
+if(me){ location.hash = location.hash||"#/dashboard"; } else { location.hash="#/login"; }
+render();
+</script>
+</body>
+</html>
